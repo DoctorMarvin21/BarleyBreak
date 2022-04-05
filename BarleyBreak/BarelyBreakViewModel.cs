@@ -53,12 +53,25 @@ namespace BarleyBreak
 
         public PieceViewModel[] Pieces { get; }
 
-        public void Shuffle(int steps)
+        public void Shuffle(int steps = 1000 * PiecesCount)
         {
+            // Setting defauld state first
+            for (int i = 0; i < Rows; i++)
+            {
+                for (int j = 0; j < Columns; j++)
+                {
+                    int index = i * Columns + j;
+
+                    Pieces[index].Row = i;
+                    Pieces[index].Column = j;
+                }
+            }
+
             // Actual moving is faster then search so let's move pieces and then re-order
             Random rnd = new Random(Environment.TickCount);
 
             var emptyPiece = Pieces[PiecesCount - 1];
+            emptyPiece.DisplayPiece = false;
 
             for (int i = 0; i < steps; i++)
             {
@@ -181,6 +194,11 @@ namespace BarleyBreak
 
         public PieceViewModel? MoveEmptyPiece(MoveDirection direction)
         {
+            if (Done)
+            {
+                return null;
+            }
+
             var emptyPiece = Pieces[^1];
 
             switch (direction)

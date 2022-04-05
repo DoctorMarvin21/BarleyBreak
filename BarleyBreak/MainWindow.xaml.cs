@@ -13,6 +13,8 @@ namespace BarleyBreak
     /// </summary>
     public partial class MainWindow : Window
     {
+        private const int MoveAnimationTime = 200;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -97,7 +99,7 @@ namespace BarleyBreak
 
             TranslateTransform transform = new TranslateTransform();
             parent.RenderTransform = transform;
-            DoubleAnimation xAnimation = new DoubleAnimation(0, piece.NewX - piece.OldX, TimeSpan.FromMilliseconds(200));
+            DoubleAnimation xAnimation = new DoubleAnimation(0, piece.NewX - piece.OldX, TimeSpan.FromMilliseconds(MoveAnimationTime));
 
             xAnimation.Completed += (s, e) =>
             {
@@ -115,7 +117,7 @@ namespace BarleyBreak
 
             TranslateTransform transform = new TranslateTransform();
             parent.RenderTransform = transform;
-            DoubleAnimation yAnimation = new DoubleAnimation(0, piece.NewY - piece.OldY, TimeSpan.FromMilliseconds(200));
+            DoubleAnimation yAnimation = new DoubleAnimation(0, piece.NewY - piece.OldY, TimeSpan.FromMilliseconds(MoveAnimationTime));
 
             yAnimation.Completed += (s, e) =>
             {
@@ -125,6 +127,12 @@ namespace BarleyBreak
             };
 
             transform.BeginAnimation(TranslateTransform.YProperty, yAnimation);
+        }
+
+        private void NewGameClick(object sender, RoutedEventArgs e)
+        {
+            var viewModel = (BarelyBreakViewModel)DataContext;
+            viewModel.Shuffle();
         }
     }
 }
