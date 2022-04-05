@@ -1,9 +1,16 @@
 ﻿using System;
-using System.Collections.ObjectModel;
-using System.Threading.Tasks;
-
+using System.Linq;
 namespace BarleyBreak
 {
+    public enum MoveDirection
+    {
+        None,
+        Left,
+        Right,
+        Up,
+        Down
+    }
+
     public class BarelyBreakViewModel
     {
         public const int Rows = 4;
@@ -12,124 +19,253 @@ namespace BarleyBreak
 
         public BarelyBreakViewModel()
         {
-            Pieces = new ObservableCollection<PieceViewModel>[Rows];
+            Pieces = new PieceViewModel[PiecesCount];
+            var image = BarelyBreakUtils.LoadImage("Image.png");
+            var cut = BarelyBreakUtils.CutImage(image, Rows, Columns);
+            Width = image.Width;
+            Height = image.Height;
 
             for (int i = 0; i < Rows; i++)
             {
-                Pieces[i] = new ObservableCollection<PieceViewModel>();
-
                 for (int j = 0; j < Columns; j++)
                 {
                     int index = i * Columns + j;
-
-                    string tag;
                     bool isEmpty = index == PiecesCount - 1;
 
-                    if (isEmpty)
+                    Pieces[index] = new PieceViewModel(this, cut[i, j], index, isEmpty)
                     {
-                        tag = string.Empty;
-                    }
-                    else
-                    {
-                        tag = (index + 1).ToString();
-                    }
-
-                    Pieces[i].Add(new PieceViewModel
-                    {
-                        Owner = this,
                         Row = i,
                         Column = j,
-                        Index = index,
-                        Tag = tag,
-                        IsEmpty = isEmpty
-                    });
+                        DisplayPiece = !isEmpty
+                    };
                 }
             }
 
-            Shuffle(0);
+            Shuffle(1000 * PiecesCount);
+            CheckComplete();
         }
 
-        public ObservableCollection<PieceViewModel>[] Pieces { get; }
+        public bool Done { get; private set; }
 
-        public async void Shuffle(int delay = 0)
+        public double Width { get; }
+
+        public double Height { get; }
+
+        public PieceViewModel[] Pieces { get; }
+
+        public void Shuffle(int steps)
         {
-            // Do this in non-real array
+            // Actual moving is faster then search so let's move pieces and then re-order
             Random rnd = new Random(Environment.TickCount);
 
-            var emptyPiece = Pieces[Rows - 1][Columns - 1];
+            var emptyPiece = Pieces[PiecesCount - 1];
 
-            for (int i = 0; i < 1000 * PiecesCount; i++)
+            for (int i = 0; i < steps; i++)
             {
-                int direction = rnd.Next(0, 4);
+                var direction = (MoveDirection)rnd.Next(0, 5);
+                int emptyIndex = emptyPiece.Row * Columns + emptyPiece.Column;
 
-                if (direction == 0 && emptyPiece.Column > 0)
-                {
-                    var left = Pieces[emptyPiece.Row][emptyPiece.Column - 1];
+                if (direction == MoveDirection.Left && emptyPiece.Column > 0)
+                { 
+                    var left = Pieces[emptyIndex - 1];
 
-                    Pieces[emptyPiece.Row].Move(emptyPiece.Column, emptyPiece.Column - 1);
+                    Pieces[emptyIndex] = left;
+                    Pieces[emptyIndex - 1] = emptyPiece;
 
                     left.Column++;
                     emptyPiece.Column--;
-
-                    await Task.Delay(delay);
                 }
-                else if (direction == 1 && emptyPiece.Column < Columns - 1)
+                else if (direction == MoveDirection.Right && emptyPiece.Column < Columns - 1)
                 {
-                    var right = Pieces[emptyPiece.Row][emptyPiece.Column + 1];
+                    var right = Pieces[emptyIndex + 1];
 
-                    Pieces[emptyPiece.Row].Move(emptyPiece.Column, emptyPiece.Column + 1);
+                    Pieces[emptyIndex] = right;
+                    Pieces[emptyIndex + 1] = emptyPiece;
 
                     emptyPiece.Column++;
                     right.Column--;
-
-                    await Task.Delay(delay);
                 }
-                else if (direction == 2 && emptyPiece.Row > 0)
+                else if (direction == MoveDirection.Up && emptyPiece.Row > 0)
                 {
-                    var up = Pieces[emptyPiece.Row - 1][emptyPiece.Column];
+                    var up = Pieces[emptyIndex - Columns];
 
-                    Pieces[emptyPiece.Row].Remove(emptyPiece);
-                    Pieces[emptyPiece.Row - 1].Remove(up);
-
-                    Pieces[emptyPiece.Row].Insert(emptyPiece.Column, up);
-                    Pieces[emptyPiece.Row - 1].Insert(emptyPiece.Column, emptyPiece);
+                    Pieces[emptyIndex] = up;
+                    Pieces[emptyIndex - Columns] = emptyPiece;
 
                     emptyPiece.Row--;
                     up.Row++;
-
-                    await Task.Delay(delay);
                 }
-                else if (direction == 3 && emptyPiece.Row < Columns - 1)
+                else if (direction == MoveDirection.Down && emptyPiece.Row < Columns - 1)
                 {
-                    var down = Pieces[emptyPiece.Row + 1][emptyPiece.Column];
+                    var down = Pieces[emptyIndex + Columns];
 
-                    Pieces[emptyPiece.Row].Remove(emptyPiece);
-                    Pieces[emptyPiece.Row + 1].Remove(down);
-
-                    Pieces[emptyPiece.Row].Insert(emptyPiece.Column, down);
-                    Pieces[emptyPiece.Row + 1].Insert(emptyPiece.Column, emptyPiece);
+                    Pieces[emptyIndex] = down;
+                    Pieces[emptyIndex + Columns] = emptyPiece;
 
                     emptyPiece.Row++;
                     down.Row--;
-
-                    await Task.Delay(delay);
                 }
             }
+
+            for (int i = 0; i < Pieces.Length; i++)
+            {
+                Pieces[i].X = Pieces[i].NewX;
+                Pieces[i].Y = Pieces[i].NewY;
+            }
+
+            Array.Sort(Pieces, (x, y) => x.Index - y.Index);
+            Done = false;
         }
-    }
 
-    public class PieceViewModel
-    {
-        public BarelyBreakViewModel Owner { get; set; }
+        public MoveDirection ClickMove(PieceViewModel piece)
+        {
+            if (Done)
+            {
+                return MoveDirection.None;
+            }
 
-        public int Index { get; set; }
+            if (piece.Column > 0)
+            {
+                var left = Pieces.First(x => x.Row == piece.Row && x.Column == piece.Column - 1);
 
-        public string Tag { get; set; }
+                if (left.IsEmpty)
+                {
+                    left.Column++;
+                    piece.Column--;
 
-        public int Column { get; set; }
+                    return MoveDirection.Left;
+                }
+            }
 
-        public int Row { get; set; }
+            if (piece.Column < Columns - 1)
+            {
+                var right = Pieces.First(x => x.Row == piece.Row && x.Column == piece.Column + 1);
 
-        public bool IsEmpty { get; set; }
+                if (right.IsEmpty)
+                {
+                    piece.Column++;
+                    right.Column--;
+
+                    return MoveDirection.Right;
+                }
+            }
+
+            if (piece.Row > 0)
+            {
+                var up = Pieces.First(x => x.Row == piece.Row - 1 && x.Column == piece.Column);
+
+                if (up.IsEmpty)
+                {
+                    piece.Row--;
+                    up.Row++;
+
+                    return MoveDirection.Up;
+                }
+            }
+
+            if (piece.Row < Columns - 1)
+            {
+                var down = Pieces.First(x => x.Row == piece.Row + 1 && x.Column == piece.Column);
+
+                if (down.IsEmpty)
+                {
+                    piece.Row++;
+                    down.Row--;
+
+                    return MoveDirection.Down;
+                }
+            }
+
+            return MoveDirection.None;
+        }
+
+        public PieceViewModel? MoveEmptyPiece(MoveDirection direction)
+        {
+            var emptyPiece = Pieces[^1];
+
+            switch (direction)
+            {
+                case MoveDirection.Left:
+                    {
+                        if (emptyPiece.Column > 0)
+                        {
+                            var left = Pieces.First(x => x.Row == emptyPiece.Row && x.Column == emptyPiece.Column - 1);
+
+                            left.Column++;
+                            emptyPiece.Column--;
+
+                            return left;
+                        }
+
+                        break;
+                    }
+                case MoveDirection.Right:
+                    {
+                        if (emptyPiece.Column < Columns - 1)
+                        {
+                            var right = Pieces.First(x => x.Row == emptyPiece.Row && x.Column == emptyPiece.Column + 1);
+
+                            right.Column--;
+                            emptyPiece.Column++;
+
+                            return right;
+                        }
+
+                        break;
+                    }
+                case MoveDirection.Up:
+                    {
+                        if (emptyPiece.Row > 0)
+                        {
+                            var up = Pieces.First(x => x.Row == emptyPiece.Row - 1 && x.Column == emptyPiece.Column);
+
+                            emptyPiece.Row--;
+                            up.Row++;
+
+                            return up;
+                        }
+
+                        break;
+                    }
+                case MoveDirection.Down:
+                    {
+                        if (emptyPiece.Row < Columns - 1)
+                        {
+                            var down = Pieces.First(x => x.Row == emptyPiece.Row + 1 && x.Column == emptyPiece.Column);
+
+                            emptyPiece.Row++;
+                            down.Row--;
+
+                            return down;
+                        }
+
+                        break;
+                    }
+            }
+
+            return null;
+        }
+
+        public void CheckComplete()
+        {
+            for (int i = 0; i < Pieces.Length; i++)
+            {
+                var piece = Pieces[i];
+
+                if (piece.Row * Columns + piece.Column != piece.Index)
+                {
+                    return;
+                }
+            }
+
+            Done = true;
+
+            var lastPiece = Pieces[^1];
+
+            lastPiece.X = lastPiece.NewX;
+            lastPiece.Y = lastPiece.NewY;
+
+            lastPiece.DisplayPiece = true;
+        }
     }
 }

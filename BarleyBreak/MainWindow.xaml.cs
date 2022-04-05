@@ -1,6 +1,10 @@
-﻿using System.Windows;
+﻿using System;
+using System.Linq;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace BarleyBreak
 {
@@ -14,77 +18,113 @@ namespace BarleyBreak
             InitializeComponent();
         }
 
-        private void Label_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        private void PieceMouseDown(object sender, MouseButtonEventArgs e)
         {
-            var piece = (PieceViewModel)((Label)e.Source).DataContext;
+            var piece = (PieceViewModel)((FrameworkElement)e.Source).DataContext;
 
-            if (piece.Column > 0)
+            var direction = piece.Owner.ClickMove(piece);
+
+            if (direction == MoveDirection.Left || direction == MoveDirection.Right)
             {
-                var left = piece.Owner.Pieces[piece.Row][piece.Column - 1];
-
-                if (left.IsEmpty)
-                {
-                    piece.Owner.Pieces[piece.Row].Move(piece.Column, piece.Column - 1);
-
-                    left.Column++;
-                    piece.Column--;
-
-                    return;
-                }
+                MoveX(piece, (Image)e.Source);
             }
-
-            if (piece.Column < BarelyBreakViewModel.Columns - 1)
+            else if (direction == MoveDirection.Up || direction == MoveDirection.Down)
             {
-                var right = piece.Owner.Pieces[piece.Row][piece.Column + 1];
-
-                if (right.IsEmpty)
-                {
-                    piece.Owner.Pieces[piece.Row].Move(piece.Column, piece.Column + 1);
-
-                    piece.Column++;
-                    right.Column--;
-
-                    return;
-                }
+                MoveY(piece, (Image)e.Source);
             }
+        }
 
-            if (piece.Row > 0)
+        private void WindowKeyDown(object sender, KeyEventArgs e)
+        {
+            var viewModel = (BarelyBreakViewModel)DataContext;
+
+            switch (e.Key)
             {
-                var up = piece.Owner.Pieces[piece.Row - 1][piece.Column];
+                case Key.Left:
+                    {
+                        var result = viewModel.MoveEmptyPiece(MoveDirection.Right);
 
-                if (up.IsEmpty)
-                {
-                    piece.Owner.Pieces[piece.Row].Remove(piece);
-                    piece.Owner.Pieces[piece.Row - 1].Remove(up);
+                        if (result != null)
+                        {
+                            var image = BarelyBreakUtils.FindVisualChilds<Image>(this, (obj) => obj.DataContext == result).First();
+                            MoveX(result, image);
+                        }
 
-                    piece.Owner.Pieces[piece.Row].Insert(piece.Column, up);
-                    piece.Owner.Pieces[piece.Row - 1].Insert(piece.Column, piece);
+                        break;
+                    }
+                case Key.Right:
+                    {
+                        var result = viewModel.MoveEmptyPiece(MoveDirection.Left);
 
-                    piece.Row--;
-                    up.Row++;
+                        if (result != null)
+                        {
+                            var image = BarelyBreakUtils.FindVisualChilds<Image>(this, (obj) => obj.DataContext == result).First();
+                            MoveX(result, image);
+                        }
 
-                    return;
-                }
+                        break;
+                    }
+                case Key.Up:
+                    {
+                        var result = viewModel.MoveEmptyPiece(MoveDirection.Down);
+
+                        if (result != null)
+                        {
+                            var image = BarelyBreakUtils.FindVisualChilds<Image>(this, (obj) => obj.DataContext == result).First();
+                            MoveY(result, image);
+                        }
+
+                        break;
+                    }
+                case Key.Down:
+                    {
+                        var result = viewModel.MoveEmptyPiece(MoveDirection.Up);
+
+                        if (result != null)
+                        {
+                            var image = BarelyBreakUtils.FindVisualChilds<Image>(this, (obj) => obj.DataContext == result).First();
+                            MoveY(result, image);
+                        }
+
+                        break;
+                    }
             }
+        }
 
-            if (piece.Row < BarelyBreakViewModel.Columns - 1)
+        public static void MoveX(PieceViewModel piece, Image target)
+        {
+            var parent = (UIElement)target.Parent;
+
+            TranslateTransform transform = new TranslateTransform();
+            parent.RenderTransform = transform;
+            DoubleAnimation xAnimation = new DoubleAnimation(0, piece.NewX - piece.OldX, TimeSpan.FromMilliseconds(200));
+
+            xAnimation.Completed += (s, e) =>
             {
-                var down = piece.Owner.Pieces[piece.Row + 1][piece.Column];
+                parent.RenderTransform = Transform.Identity;
+                piece.X = piece.NewX;
+                piece.Owner.CheckComplete();
+            };
 
-                if (down.IsEmpty)
-                {
-                    piece.Owner.Pieces[piece.Row].Remove(piece);
-                    piece.Owner.Pieces[piece.Row + 1].Remove(down);
+            transform.BeginAnimation(TranslateTransform.XProperty, xAnimation);
+        }
 
-                    piece.Owner.Pieces[piece.Row].Insert(piece.Column, down);
-                    piece.Owner.Pieces[piece.Row + 1].Insert(piece.Column, piece);
+        public static void MoveY(PieceViewModel piece, Image target)
+        {
+            var parent = (UIElement)target.Parent;
 
-                    piece.Row++;
-                    down.Row--;
+            TranslateTransform transform = new TranslateTransform();
+            parent.RenderTransform = transform;
+            DoubleAnimation yAnimation = new DoubleAnimation(0, piece.NewY - piece.OldY, TimeSpan.FromMilliseconds(200));
 
-                    return;
-                }
-            }
+            yAnimation.Completed += (s, e) =>
+            {
+                parent.RenderTransform = Transform.Identity;
+                piece.Y = piece.NewY;
+                piece.Owner.CheckComplete();
+            };
+
+            transform.BeginAnimation(TranslateTransform.YProperty, yAnimation);
         }
     }
 }
