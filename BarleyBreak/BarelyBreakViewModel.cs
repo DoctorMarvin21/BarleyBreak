@@ -6,8 +6,8 @@ namespace BarleyBreak
 {
     public class BarelyBreakViewModel
     {
-        public const int Rows = 10;
-        public const int Columns = 10;
+        public const int Rows = 4;
+        public const int Columns = 4;
         public const int PiecesCount = Rows * Columns;
 
         public BarelyBreakViewModel()
@@ -46,7 +46,7 @@ namespace BarleyBreak
                 }
             }
 
-            Shuffle(5);
+            Shuffle(0);
         }
 
         public ObservableCollection<PieceViewModel>[] Pieces { get; }
