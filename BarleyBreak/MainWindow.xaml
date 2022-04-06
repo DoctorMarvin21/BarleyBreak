@@ -6,7 +6,7 @@
         xmlns:local="clr-namespace:BarleyBreak"
         mc:Ignorable="d"
         PreviewKeyDown="WindowKeyDown"
-        Title="Barely-Break" Height="450" Width="800">
+        Title="Barely-Break" Height="500" Width="500">
     <Window.DataContext>
         <local:BarelyBreakViewModel />
     </Window.DataContext>
@@ -21,7 +21,7 @@
         <StackPanel Orientation="Horizontal">
             <Button Content="New Game" Margin="5" Click="NewGameClick" />
         </StackPanel>
-        <Viewbox Grid.Row="1">
+        <Viewbox Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Top">
             <Border BorderBrush="Black" BorderThickness="2">
                 <ItemsControl ItemsSource="{Binding Pieces}" Width="{Binding Width}" Height="{Binding Height}">
                     <ItemsControl.ItemsPanel>
@@ -37,9 +37,9 @@
                     </ItemsControl.ItemContainerStyle>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border BorderThickness="1" BorderBrush="Black" PreviewMouseDown="PieceMouseDown">
-                                <Image Source="{Binding Piece}"
-                                   Visibility="{Binding DisplayPiece, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                            <Border BorderThickness="1" BorderBrush="Black"
+                                    Visibility="{Binding DisplayPiece, Converter={StaticResource BooleanToVisibilityConverter}}" PreviewMouseDown="PieceMouseDown">
+                                <Image Source="{Binding Piece}" />
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
